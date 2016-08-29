@@ -62,15 +62,23 @@ class Stl(BaseMesh):
         if not header.strip():
             return
 
-        if mode in (Stl.MODE_AUTO, Stl.MODE_ASCII) and header.startswith('solid'):
-            try:
-                name = header.split('\n', 1)[0][:5].strip()
-                data = Stl.__load_ascii(fh, header)
+        if mode == Stl.MODE_AUTO:
+            fh.seek(-128, 2)
+            last_line = fh.readlines()[-1]
+            fh.seek(Stl.HEADER_SIZE, 0)
+            # Just checking if header starts with "solid" is not enough
+            # Binary STL header may also begin that way, so we need
+            # to check if the file also contains "endsolid" in it's end
+            # If it does then it's ASCII STL, as biary STL ends with binary data
+            if header.startswith("solid") and "endsolid" in last_line:
                 mode = Stl.MODE_ASCII
+            else:
+                mode = Stl.MODE_BINARY
 
-            except:
-                pass
-
+        if mode == Stl.MODE_ASCII:
+            name = header.split('\n', 1)[0][:5].strip()
+            data = Stl.__load_ascii(fh, header)
+            mode = Stl.MODE_ASCII
         else:
             data = Stl.__load_binary(fh)
             mode = Stl.MODE_BINARY
